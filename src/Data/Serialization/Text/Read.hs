@@ -27,3 +27,10 @@ readable = Deserialize r where
 
 instance Deserialization ReadText String where
     runDeserialization (ReadText d) s = evalState (runErrorT d) s
+    deserializationEof _ = ReadText $ do
+        s <- lift get
+        when (null s) $ throwError "EOF"
+    deserializeTail = ReadText $ do
+        s <- lift get
+        lift (put "")
+        return s
