@@ -14,6 +14,7 @@ instance (Applicative m, Alternative m, Monad m) => Combine (Deserialize m) wher
     (Deserialize l) .++. (Deserialize r) = Deserialize $ (Left <$> l) <|> (Right <$> r)
     (Deserialize l) .+. (Deserialize r) = Deserialize $ l <|> r
     (Iso ab ba) <<>> (Deserialize v) = Deserialize $ fmap ab v
+    (Deserialize v) .:. (Iso ab ba) = Deserialize $ fmap ba v
     (Deserialize l) .*>> f = Deserialize $ do
         x <- l
         y <- runDeserialize (f x)
