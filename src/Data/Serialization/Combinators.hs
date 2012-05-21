@@ -4,7 +4,7 @@ module Data.Serialization.Combinators (
     (.?.),
     try,
     (.-.),
-    narrow,
+    narrow, list,
     many, many1, times,
     literal, literals,
     intercalated, intercalated1,

@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
 
 module Data.Serialization.Text.Read (
-    ReadText,
+    ReadText(..),
     readable
     ) where
 

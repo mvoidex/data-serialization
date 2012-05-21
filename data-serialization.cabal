@@ -11,7 +11,6 @@ library
     hs-source-dirs: src
     default-language: Haskell2010
     build-depends:
-        attoparsec        == 0.10.*,
         base              >= 4 && < 5,
         bytestring        == 0.9.*,
         mtl               == 2.0.*,
@@ -27,4 +26,3 @@ library
         Data.Serialization.Combinators
         Data.Serialization.Text.Read
         Data.Serialization.Text.Show
-        Data.Serialization.Text.AttoParsec

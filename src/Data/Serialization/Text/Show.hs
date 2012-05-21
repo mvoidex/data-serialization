@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
 
 module Data.Serialization.Text.Show (
-    ShowTextT, ShowText,
+    ShowTextT(..), ShowText,
     showable
     ) where
 
