@@ -23,8 +23,8 @@ $(makeIso "result" ''Result)
 test :: (Read s, Show s, Read a, Show a) => Textual (Result s a)
 test = (
     (textual .**. textual) .++.        -- ^ (s, a) for ValidResult
-    ((textual .**. try textual) .++.   -- ^ (String, Maybe a) for InvalidResult
-    many textual))                     -- ^ [String] for UknownResult
+    (textual .**. try textual) .++.   -- ^ (String, Maybe a) for InvalidResult
+    (many textual)                     -- ^ [String] for UknownResult
     .:.
     result                             -- ^ Convert to Result s a
 </pre>
