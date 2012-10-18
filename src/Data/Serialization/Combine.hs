@@ -4,6 +4,12 @@ module Data.Serialization.Combine (
 
 import Data.Iso
 
+infixr 6 .++.
+infixr 7 .**.
+infixr 6 .+.
+infixl 2 .:.
+infixl 8 .*>>
+
 class Combine f where
     (.**.) :: f a -> f b -> f (a, b)
     (.++.) :: f a -> f b -> f (Either a b)

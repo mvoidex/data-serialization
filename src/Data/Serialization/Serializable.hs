@@ -1,8 +1,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Data.Serialization.Serializable (
-    Serializable(..),
+    Serializable(..), SerializableT,
     Serialization(..), Deserialization(..),
+    Hint(..),
     serializable,
     eof, anything,
     encode, decode
@@ -17,6 +18,8 @@ import Data.Serialization.Deserialize
 data Serializable s sm dm a = Serializable {
     serializer :: Serialize sm a,
     deserializer :: Deserialize dm a }
+
+type SerializableT s sm dm a = Serializable s (sm s) (dm s) a
 
 instance (Monad sm, Applicative sm, Alternative sm, Monad dm, Applicative dm, Alternative dm) => Combine (Serializable s sm dm) where
     ~(Serializable sl dl) .**. ~(Serializable sr dr) = Serializable (sl .**. sr) (dl .**. dr)

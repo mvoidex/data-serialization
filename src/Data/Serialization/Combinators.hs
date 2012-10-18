@@ -18,6 +18,11 @@ import Data.Maybe
 import Data.Serialization.Combine
 import Data.Serialization.Serializable
 
+infixl 8 .**
+infixr 8 **.
+infixl 1 .?.
+infixl 6 .-.
+
 -- | Ignore right
 (.**) :: (Combine f) => f a -> f () -> f a
 l .** r = (Iso fst (\v -> (v, ()))) <<>> (l .**. r)
