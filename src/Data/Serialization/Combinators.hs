@@ -20,7 +20,7 @@ import Data.Serialization.Serializable
 
 infixl 8 .**
 infixr 8 **.
-infixl 1 .?.
+infixr 1 .?.
 infixl 6 .-.
 
 -- | Ignore right
@@ -95,10 +95,10 @@ intercalated1 p l = list <<>> (p .**. many (l **. p))
 (<~>)
     ::(Monad sm, Applicative sm, Alternative sm,
         Monad dm, Applicative dm, Alternative dm,
-        Serialization sm s, Serialization sm i,
-        Deserialization dm s, Deserialization dm i)
+        Serialization sm s, Serialization sm' i,
+        Deserialization dm s, Deserialization dm' i)
     => Serializable s sm dm i
-    -> Serializable i sm dm a
+    -> Serializable i sm' dm' a
     -> Serializable s sm dm a
 i <~> o = (Iso fromRight Right) <<>> (isRight .?. (o' <<>> i')) where
     i' = isRight .?. (Iso Right fromRight <<>> i) where
