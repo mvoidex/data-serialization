@@ -7,7 +7,9 @@ module Data.Iso (
 import Control.Arrow
 import Language.Haskell.TH hiding (clause)
 
-data Iso a b = Iso (a -> b) (b -> a)
+data Iso a b = Iso {
+    morph :: a -> b,
+    comorph :: b -> a }
 
 printQ :: String -> Q ()
 printQ s = runIO $ putStrLn s
