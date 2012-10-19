@@ -35,17 +35,22 @@ data CtorIso = CtorIso {
     domain :: Type }
 
 ctorIso :: Con -> CtorIso
-ctorIso (NormalC name ts) = CtorIso from to dom where
-    from = (ConP name (map VarP args), foldr1 tup2 (map VarE args))
-    to = (foldr1 ptup2 (map VarP args), foldl AppE (ConE name) (map VarE args))
-    dom = foldr1 ttup2 ts'
-    
-    tup2 l r = TupE [l, r]
-    ptup2 l r = TupP [l, r]
-    ttup2 l r = TupleT 2 `AppT` l `AppT` r
-    
-    args = map (\i -> mkName ("x" ++ show i)) [1 .. length ts]
-    ts' = map snd ts
+ctorIso con = case con of
+    NormalC name ts -> ctorIso' name ts
+    RecC name ts -> ctorIso' name $ map (\(_, s, t) -> (s, t)) ts
+    _ -> error "Unsupported constructor type"
+    where
+        ctorIso' name ts = CtorIso from to dom where
+            from = (ConP name (map VarP args), foldr1 tup2 (map VarE args))
+            to = (foldr1 ptup2 (map VarP args), foldl AppE (ConE name) (map VarE args))
+            dom = foldr1 ttup2 ts'
+            
+            tup2 l r = TupE [l, r]
+            ptup2 l r = TupP [l, r]
+            ttup2 l r = TupleT 2 `AppT` l `AppT` r
+            
+            args = map (\i -> mkName ("x" ++ show i)) [1 .. length ts]
+            ts' = map snd ts
 
 data DataIso = DataIso {
     fromData :: [(Pat, Exp)],
