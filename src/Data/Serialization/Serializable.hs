@@ -5,6 +5,7 @@ module Data.Serialization.Serializable (
     Serialization(..), Deserialization(..),
     Hint(..),
     serializable,
+    Convertible(..), convertible,
     eof, anything,
     encode, decode
     ) where
@@ -48,6 +49,13 @@ serializable
     -> Deserialize dm a
     -> Serializable s sm dm a
 serializable p g = Serializable p g
+
+data Convertible a b = Convertible {
+    convertTo :: a -> Either String b,
+    convertFrom :: b -> Either String a }
+
+convertible :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm a -> Convertible a s
+convertible s = Convertible (encode s) (decode s)
 
 eof :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm ()
 eof = eof' where
