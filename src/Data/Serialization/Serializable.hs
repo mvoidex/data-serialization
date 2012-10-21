@@ -11,7 +11,6 @@ module Data.Serialization.Serializable (
     ) where
 
 import Control.Applicative
-import Control.Monad
 import Data.Serialization.Combine
 import Data.Serialization.Serialize
 import Data.Serialization.Deserialize
@@ -43,12 +42,8 @@ class (Monad dm, Applicative dm, Alternative dm) => Deserialization dm s where
     deserializationEof :: Hint s -> dm ()
     deserializeTail :: dm s
 
-serializable
-    :: (Serialization sm s, Deserialization dm s)
-    => Serialize sm a
-    -> Deserialize dm a
-    -> Serializable s sm dm a
-serializable p g = Serializable p g
+serializable :: Serialize sm a -> Deserialize dm a -> Serializable s sm dm a
+serializable = Serializable
 
 data Convertible a b = Convertible {
     convertTo :: a -> Either String b,
@@ -69,10 +64,10 @@ anything :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm s
 anything = serializable (Serialize serializeTail) (Deserialize deserializeTail)
 
 encode :: (Serialization sm s) => Serializable s sm dm a -> a -> Either String s
-encode ~(Serializable ~(Serialize s) _) v = runSerialization $ s v
+encode ~(Serializable ~(Serialize s) _) = runSerialization . s
 
 decode :: (Deserialization dm s) => Serializable s sm dm a -> s -> Either String a
-decode ~(Serializable _ ~(Deserialize d)) s = runDeserialization d s
+decode ~(Serializable _ ~(Deserialize d)) = runDeserialization d
 
 recode :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm a -> Convertible a s
 recode s = Convertible (encode s) (decode s)
