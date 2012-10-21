@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Data.Iso (
-    Iso(..), makeIso
+    Iso(..), coiso, makeIso
     ) where
 
 import Control.Arrow
@@ -10,6 +10,9 @@ import Language.Haskell.TH hiding (clause)
 data Iso a b = Iso {
     morph :: a -> b,
     comorph :: b -> a }
+
+coiso :: Iso a b -> Iso b a
+coiso (Iso m c) = Iso c m
 
 printQ :: String -> Q ()
 printQ s = runIO $ putStrLn s

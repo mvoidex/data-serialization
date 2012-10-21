@@ -8,7 +8,7 @@ module Data.Serialization.Combinators (
     many, many1, times,
     literal, literals,
     intercalated, intercalated1,
-    (<~>)
+    (<~>), (<~~>)
     ) where
 
 import Control.Applicative hiding (many)
@@ -93,16 +93,18 @@ intercalated1 p l = list <<>> (p .**. many (l **. p))
 
 -- | Streaming parsers
 (<~>)
-    ::(Monad sm, Applicative sm, Alternative sm,
-        Monad dm, Applicative dm, Alternative dm,
-        Serialization sm s, Serialization sm' i,
-        Deserialization dm s, Deserialization dm' i)
+    :: (Monad sm, Alternative sm, Monad dm, Alternative dm, Serialization sm' i, Deserialization dm' i)
     => Serializable s sm dm i
     -> Serializable i sm' dm' a
     -> Serializable s sm dm a
-i <~> o = (Iso fromRight Right) <<>> (isRight .?. (o' <<>> i')) where
-    i' = isRight .?. (Iso Right fromRight <<>> i) where
-    o' = Iso (>>= decode o) (>>= encode o)
+i <~> o = i <~~> recode o
+
+-- | Like streaming, but accepts 'Convertible'
+(<~~>) :: (Monad sm, Alternative sm, Monad dm, Alternative dm) =>
+    Serializable s sm dm i -> Convertible a i -> Serializable s sm dm a
+i <~~> c = (Iso fromRight Right) <<>> (isRight .?. (c' <<>> i')) where
+    i' = isRight .?. (Iso Right fromRight <<>> i)
+    c' = Iso (>>= convertFrom c) (>>= convertTo c)
 
     isRight (Right _) = True
     isRight _ = False

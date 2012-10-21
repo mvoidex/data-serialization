@@ -5,9 +5,9 @@ module Data.Serialization.Serializable (
     Serialization(..), Deserialization(..),
     Hint(..),
     serializable,
-    Convertible(..), convertible,
+    Convertible(..), coconvertble,
     eof, anything,
-    encode, decode
+    encode, decode, recode
     ) where
 
 import Control.Applicative
@@ -54,8 +54,8 @@ data Convertible a b = Convertible {
     convertTo :: a -> Either String b,
     convertFrom :: b -> Either String a }
 
-convertible :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm a -> Convertible a s
-convertible s = Convertible (encode s) (decode s)
+coconvertble :: Convertible a b -> Convertible b a
+coconvertble (Convertible t f) = Convertible f t
 
 eof :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm ()
 eof = eof' where
@@ -73,3 +73,6 @@ encode ~(Serializable ~(Serialize s) _) v = runSerialization $ s v
 
 decode :: (Deserialization dm s) => Serializable s sm dm a -> s -> Either String a
 decode ~(Serializable _ ~(Deserialize d)) s = runDeserialization d s
+
+recode :: (Serialization sm s, Deserialization dm s) => Serializable s sm dm a -> Convertible a s
+recode s = Convertible (encode s) (decode s)
