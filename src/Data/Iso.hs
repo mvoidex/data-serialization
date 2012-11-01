@@ -1,11 +1,14 @@
-{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts, ConstraintKinds #-}
+{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts, ConstraintKinds, UndecidableInstances #-}
 
 module Data.Iso (
     Iso(..), coiso,
+    -- * Simplified type representation
     Data(..), Ctor(..), Stor(..),
     GenIso(..),
     IsoRep, GenIsoDerivable,
-    giso
+    giso,
+    -- * Generalized newtype wrapping
+    WrappedType, Wrapper(..)
     ) where
 
 import GHC.Generics
@@ -80,3 +83,17 @@ type GenIsoDerivable cls a = (Generic a, GenIso (Rep a), cls (IsoRep a))
 -- | Generic iso between type and its representation
 giso :: (Generic a, GenIso (Rep a)) => Iso a (IsoRep a)
 giso = Iso (genTo . from) (to . genFrom)
+
+-- | Newtype wrapped
+type family WrappedType a :: *
+type instance WrappedType (Data (Ctor (Stor a))) = a
+
+-- | Class for newtype wrappers to wrap/unwrap
+class Wrapper a where
+    wrap :: WrappedType (IsoRep a) -> a
+    unwrap :: a -> WrappedType (IsoRep a)
+
+-- | Default instance
+instance (Generic a, GenIso (Rep a), IsoRep a ~ Data (Ctor (Stor x))) => Wrapper a where
+    wrap v = comorph giso $ Data "" (Ctor "" (Stor Nothing v))
+    unwrap v = (\(Data _ (Ctor _ (Stor _ x))) -> x) $ morph giso v    

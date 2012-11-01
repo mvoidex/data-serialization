@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, UndecidableInstances, FunctionalDependencies, DefaultSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, UndecidableInstances, FunctionalDependencies, DefaultSignatures, TypeFamilies #-}
 
 module Data.Serialization.Codec (
     Codec(..), CodecT,
@@ -12,6 +12,7 @@ module Data.Serialization.Codec (
     ) where
 
 import Control.Applicative
+import Data.Monoid
 import Data.Serialization.Combine
 import Data.Serialization.Wrap
 
@@ -42,22 +43,22 @@ class (MetaEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm
     serialize :: sm () -> Either String s
     serializeTail :: s -> sm ()
 
-    default serialize :: (EncodeWrap sm s) => sm () -> Either String s
-    serialize = encodeTo . encodeUnwrap
-    default serializeTail :: (EncodeWrap sm s) => s -> sm ()
-    serializeTail = encodeWrap . encodeTail
+    default serialize :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => t -> Either String s
+    serialize = encodeTo . unwrap
+    default serializeTail :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => s -> t
+    serializeTail = wrap . encodeTail
 
 class (MetaDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
     deserialize :: dm a -> s -> Either String a
     deserializeEof :: Hint s -> dm ()
     deserializeTail :: dm s
 
-    default deserialize :: (DecodeWrap dm s) => dm a -> s -> Either String a
-    deserialize = decodeFrom . decodeUnwrap
-    default deserializeEof :: (DecodeWrap dm s) => Hint s -> dm ()
-    deserializeEof = decodeWrap . decodeEof
-    default deserializeTail :: (DecodeWrap dm s) => dm s
-    deserializeTail = decodeWrap decodeTail
+    default deserialize :: (Monoid s, Eq s, Wrapper t, t ~ dm a, WrappedType (IsoRep t) ~ DecodeFrom s a) => t -> s -> Either String a
+    deserialize = decodeFrom . unwrap
+    default deserializeEof :: (Monoid s, Eq s, Wrapper t, t ~ dm (), WrappedType (IsoRep t) ~ DecodeFrom s ()) => Hint s -> t
+    deserializeEof = wrap . decodeEof
+    default deserializeTail :: (Monoid s, Eq s, Wrapper t, t ~ dm s, WrappedType (IsoRep t) ~ DecodeFrom s s) => t
+    deserializeTail = wrap decodeTail
 
 data Convertible a b = Convertible {
     convertTo :: a -> Either String b,

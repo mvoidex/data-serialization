@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, FunctionalDependencies, TypeFamilies, DefaultSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DefaultSignatures, TypeFamilies #-}
 
 -- | Module provides helpers to implement serializer as simple as possible
 --
@@ -9,7 +9,6 @@ module Data.Serialization.Wrap (
     -- * Wrap classes
     WrappedType,
     Wrapper(..),
-    EncodeWrap(..), DecodeWrap(..),
     -- * Helper functions
     encodePart, decodePart,
     encodeTo, encodeTail,
@@ -27,53 +26,19 @@ import GHC.Generics
 
 import Data.Serialization.Combine
 
--- | Wrap this with newtype and derive from @MetaEncode@, @EncodeWrap@ and @Serializer@
+-- | Wrap this with newtype and derive from @MetaEncode@ and @Serializer@
 type EncodeTo s a = WriterT s (Either String) a
 
--- | Wrap this with newtype and derive from @MetaDecode@, @DecodeWrap@ and @Deserializer@
+-- | Wrap this with newtype and derive from @MetaDecode@ and @Deserializer@
 type DecodeFrom s a = ErrorT String (State s) a
 
--- | Type wrapped
-type family WrappedType a :: *
-type instance WrappedType (Data (Ctor (Stor a))) = a
-
--- | Class for newtype wrappers to wrap/unwrap
-class Wrapper a where
-    wrap :: WrappedType (IsoRep a) -> a
-    unwrap :: a -> WrappedType (IsoRep a)
-
--- | Default instance
-instance (Generic a, GenIso (Rep a), IsoRep a ~ Data (Ctor (Stor x))) => Wrapper a where
-    wrap v = comorph giso $ Data "" (Ctor "" (Stor Nothing v))
-    unwrap v = (\(Data _ (Ctor _ (Stor _ x))) -> x) $ morph giso v    
-
--- | Derive from it to auto-derive from @Serializer@
-class (Alternative c, Monad c, Monoid s) => EncodeWrap c s | c -> s where
-    encodeWrap :: EncodeTo s a -> c a
-    encodeUnwrap :: c a -> EncodeTo s a
-
-    default encodeWrap :: (Wrapper t, WrappedType (IsoRep t) ~ EncodeTo s a) => EncodeTo s a -> t
-    encodeWrap = wrap
-    default encodeUnwrap :: (Wrapper t, WrappedType (IsoRep t) ~ EncodeTo s a) => t -> EncodeTo s a
-    encodeUnwrap = unwrap
-
--- | Derive from it to auto-derive from @Deserializer@
-class (Alternative c, Monad c, Monoid s, Eq s) => DecodeWrap c s | c -> s where
-    decodeWrap :: DecodeFrom s a -> c a
-    decodeUnwrap :: c a -> DecodeFrom s a
-
-    default decodeWrap :: (Wrapper t, WrappedType (IsoRep t) ~ DecodeFrom s a) => DecodeFrom s a -> t
-    decodeWrap = wrap
-    default decodeUnwrap :: (Wrapper t, WrappedType (IsoRep t) ~ DecodeFrom s a) => t -> DecodeFrom s a
-    decodeUnwrap = unwrap
-
 -- | Helper function to produce some output
-encodePart :: (Monoid s, EncodeWrap c s) => (a -> Either String s) -> Encoding c a
-encodePart f = Encoding $ encodeWrap . either (lift . Left) tell . f
+encodePart :: (Monoid s, Wrapper t, t ~ c (), WrappedType (IsoRep t) ~ EncodeTo s ()) => (a -> Either String s) -> Encoding c a
+encodePart f = Encoding $ wrap . either (lift . Left) tell . f
 
 -- | Helper function to consume some input
-decodePart :: (Monoid s, Eq s, DecodeWrap c s) => (s -> Either String (a, s)) -> Decoding c a
-decodePart f = Decoding $ decodeWrap $ do
+decodePart :: (Monoid s, Eq s, Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ DecodeFrom s a) => (s -> Either String (a, s)) -> Decoding c a
+decodePart f = Decoding $ wrap $ do
     s <- lift get
     if s == mempty
         then throwError "EOF"
