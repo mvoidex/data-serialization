@@ -31,6 +31,10 @@ class Combine f where
     ctor :: f a -> f (Ctor a)
     stor :: f a -> f (Stor a)
 
+    dat s = s .:. Iso (\(Data _ x) -> x) (Data "")
+    ctor s = s .:. Iso (\(Ctor _ x) -> x) (Ctor "")
+    stor s = s .:. Iso (\(Stor _ x) -> x) (Stor Nothing)
+
 -- | Extended combining
 class Combine f => CombineM f where
     (.|.) :: f a -> f a -> f a

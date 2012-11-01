@@ -7,6 +7,7 @@ module Data.Serialization.Codec (
     codec,
     Convertible(..), coconvertble,
     eof, anything,
+    Encoder(..), Decoder(..),
     recode
     ) where
 

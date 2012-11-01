@@ -20,6 +20,7 @@ library
         Data.Serialization.Combine
         Data.Serialization.Codec
         Data.Serialization.Combinators
+        Data.Serialization.Wrap
         Data.Serialization.Text.Read
         Data.Serialization.Text.Show
         Data.Serialization.Text.Print
