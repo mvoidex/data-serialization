@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, UndecidableInstances, FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, UndecidableInstances, FunctionalDependencies, DefaultSignatures #-}
 
 module Data.Serialization.Codec (
     Codec(..), CodecT,
@@ -13,6 +13,7 @@ module Data.Serialization.Codec (
 
 import Control.Applicative
 import Data.Serialization.Combine
+import Data.Serialization.Wrap
 
 -- | Encoder and decoder
 data Codec s sm dm a = Codec {
@@ -41,12 +42,22 @@ class (MetaEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm
     serialize :: sm () -> Either String s
     serializeTail :: s -> sm ()
 
-data Hint a = Hint
+    default serialize :: (EncodeWrap sm s) => sm () -> Either String s
+    serialize = encodeTo . encodeUnwrap
+    default serializeTail :: (EncodeWrap sm s) => s -> sm ()
+    serializeTail = encodeWrap . encodeTail
 
 class (MetaDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
     deserialize :: dm a -> s -> Either String a
     deserializeEof :: Hint s -> dm ()
     deserializeTail :: dm s
+
+    default deserialize :: (DecodeWrap dm s) => dm a -> s -> Either String a
+    deserialize = decodeFrom . decodeUnwrap
+    default deserializeEof :: (DecodeWrap dm s) => Hint s -> dm ()
+    deserializeEof = decodeWrap . decodeEof
+    default deserializeTail :: (DecodeWrap dm s) => dm s
+    deserializeTail = decodeWrap decodeTail
 
 data Convertible a b = Convertible {
     convertTo :: a -> Either String b,

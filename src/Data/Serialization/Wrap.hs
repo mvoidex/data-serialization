@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, FunctionalDependencies #-}
 
 -- | Module provides helpers to implement serializer as simple as possible
 --
@@ -9,8 +9,10 @@ module Data.Serialization.Wrap (
     -- * Wrap classes
     EncodeWrap(..), DecodeWrap(..),
     -- * Helper functions
+    encodePart, decodePart,
     encodeTo, encodeTail,
-    decodeFrom, decodeEof, decodeTail
+    decodeFrom, decodeEof, decodeTail,
+    Hint(..)
     ) where
 
 import Control.Applicative
@@ -21,32 +23,37 @@ import Control.Monad.State
 import Data.Monoid
 
 import Data.Serialization.Combine
-import Data.Serialization.Codec
 
--- | Wrap this with newtype and derive from @MetaEncode@, @EncodeWrap@
+-- | Wrap this with newtype and derive from @MetaEncode@, @EncodeWrap@ and @Serializer@
 type EncodeTo s a = WriterT s (Either String) a
 
--- | Wrap this with newtype and derive from @MetaDecode@, @DecodeWrap@
+-- | Wrap this with newtype and derive from @MetaDecode@, @DecodeWrap@ and @Deserializer@
 type DecodeFrom s a = ErrorT String (State s) a
 
 -- | Derive from it to auto-derive from @Serializer@
-class (Alternative c, Monad c, Monoid s) => EncodeWrap c s where
+class (Alternative c, Monad c, Monoid s) => EncodeWrap c s | c -> s where
     encodeWrap :: EncodeTo s a -> c a
     encodeUnwrap :: c a -> EncodeTo s a
 
 -- | Derive from it to auto-derive from @Deserializer@
-class (Alternative c, Monad c, Monoid s, Eq s) => DecodeWrap c s where
+class (Alternative c, Monad c, Monoid s, Eq s) => DecodeWrap c s | c -> s where
     decodeWrap :: DecodeFrom s a -> c a
     decodeUnwrap :: c a -> DecodeFrom s a
 
-instance (MetaEncode c, EncodeWrap c s) => Serializer c s where
-    serialize = encodeTo . encodeUnwrap
-    serializeTail = encodeWrap . encodeTail
+-- | Helper function to produce some output
+encodePart :: (Monoid s, EncodeWrap c s) => (a -> Either String s) -> Encoding c a
+encodePart f = Encoding $ encodeWrap . either (lift . Left) tell . f
 
-instance (MetaDecode c, DecodeWrap c s) => Deserializer c s where
-    deserialize = decodeFrom . decodeUnwrap
-    deserializeEof = decodeWrap . decodeEof
-    deserializeTail = decodeWrap decodeTail
+-- | Helper function to consume some input
+decodePart :: (Monoid s, Eq s, DecodeWrap c s) => (s -> Either String (a, s)) -> Decoding c a
+decodePart f = Decoding $ decodeWrap $ do
+    s <- lift get
+    if s == mempty
+        then throwError "EOF"
+        else do
+            (v, s') <- ErrorT $ return $ f s
+            lift $ put s'
+            return v
 
 -- | Helper for @serialize@
 encodeTo :: (Monoid s) => EncodeTo s () -> Either String s
@@ -72,3 +79,6 @@ decodeTail = do
     s <- lift get
     lift $ put mempty
     return s
+
+-- | Hint type
+data Hint a = Hint
