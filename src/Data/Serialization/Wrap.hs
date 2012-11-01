@@ -2,8 +2,36 @@
 
 -- | Module provides helpers to implement serializer as simple as possible
 --
--- 
+-- Suppose you want to write serializer to/from list of strings. Wrap @EncodeTo [String] a@ and @DecodeFrom [String] a@ with new types and make empty intances (all you need is derived automatically)
+--
+-- >newtype ToCSV a = ToCSV { toCSV :: EncodeTo [String] a }
+-- >    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
+-- >
+-- >instance MetaEncode ToCSV
+-- >instance Serializer ToCSV [String]
+-- >
+-- >newtype FromCSV a = FromCSV { fromCSV :: DecodeFrom [String] a }
+-- >    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
+-- >
+-- >-- Implement functions to collect metadata, default implementation just throws it away
+-- >instance MetaDecode FromCSV
+-- >instance Deserializer FromCSV [String]
+--
+-- And that's all. Now write primitive serializers and use.
+--
+-- >showcsv :: (Show a) => Encoding ToCSV a
+-- >showcscv = encodePart $ return . return . show
+-- >
+-- >readcsv :: (Read a) => Decoding FromCSV a
+-- >readcsv = decodePart f where
+-- >    f [] = Left \"EOF\"
+-- >    f (c:cs) = case reads c of
+-- >        [(v, \"\")] -> Right (v, cs)
+-- >        _ -> Left \"Can't\ read value"
+--
 module Data.Serialization.Wrap (
+    -- * Serializer classes
+    Serializer(..), Deserializer(..),
     -- * Types to wrap over
     EncodeTo, DecodeFrom,
     -- * Wrap classes
@@ -25,6 +53,29 @@ import Data.Monoid
 import GHC.Generics
 
 import Data.Serialization.Combine
+
+-- | Derive to support serialization for @Encoding@.
+class (MetaEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
+    serialize :: sm () -> Either String s
+    serializeTail :: s -> sm ()
+
+    default serialize :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => t -> Either String s
+    serialize = encodeTo . unwrap
+    default serializeTail :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => s -> t
+    serializeTail = wrap . encodeTail
+
+-- | Derive to support deserialization for @Decoding@
+class (MetaDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
+    deserialize :: dm a -> s -> Either String a
+    deserializeEof :: Hint s -> dm ()
+    deserializeTail :: dm s
+
+    default deserialize :: (Monoid s, Eq s, Wrapper t, t ~ dm a, WrappedType (IsoRep t) ~ DecodeFrom s a) => t -> s -> Either String a
+    deserialize = decodeFrom . unwrap
+    default deserializeEof :: (Monoid s, Eq s, Wrapper t, t ~ dm (), WrappedType (IsoRep t) ~ DecodeFrom s ()) => Hint s -> t
+    deserializeEof = wrap . decodeEof
+    default deserializeTail :: (Monoid s, Eq s, Wrapper t, t ~ dm s, WrappedType (IsoRep t) ~ DecodeFrom s s) => t
+    deserializeTail = wrap decodeTail
 
 -- | Wrap this with newtype and derive from @MetaEncode@ and @Serializer@
 type EncodeTo s a = WriterT s (Either String) a

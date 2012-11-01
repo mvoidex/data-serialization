@@ -1,14 +1,18 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, UndecidableInstances, FunctionalDependencies, DefaultSignatures, TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, UndecidableInstances, FunctionalDependencies, DefaultSignatures, TypeFamilies, ConstraintKinds, OverlappingInstances #-}
 
 module Data.Serialization.Codec (
+    -- * Serializer and deserializer together
     Codec(..), CodecT,
     Serializer(..), Deserializer(..),
     Hint(..),
     codec,
     Convertible(..), coconvertble,
     eof, anything,
+    -- * Encoding and decoding
     Encoder(..), Decoder(..),
-    recode
+    recode,
+    -- * Serializable
+    Serializable(..), GenSerializable(..)
     ) where
 
 import Control.Applicative
@@ -39,27 +43,6 @@ instance (CombineM (Encoding sm), CombineM (Decoding dm)) => CombineM (Codec s s
     p .?. ~(Codec s d) = Codec (p .?. s) (p .?. d)
     ~(Codec s d) .%. e = Codec (s .%. e) (d .%. e)
 
-class (MetaEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
-    serialize :: sm () -> Either String s
-    serializeTail :: s -> sm ()
-
-    default serialize :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => t -> Either String s
-    serialize = encodeTo . unwrap
-    default serializeTail :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => s -> t
-    serializeTail = wrap . encodeTail
-
-class (MetaDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
-    deserialize :: dm a -> s -> Either String a
-    deserializeEof :: Hint s -> dm ()
-    deserializeTail :: dm s
-
-    default deserialize :: (Monoid s, Eq s, Wrapper t, t ~ dm a, WrappedType (IsoRep t) ~ DecodeFrom s a) => t -> s -> Either String a
-    deserialize = decodeFrom . unwrap
-    default deserializeEof :: (Monoid s, Eq s, Wrapper t, t ~ dm (), WrappedType (IsoRep t) ~ DecodeFrom s ()) => Hint s -> t
-    deserializeEof = wrap . decodeEof
-    default deserializeTail :: (Monoid s, Eq s, Wrapper t, t ~ dm s, WrappedType (IsoRep t) ~ DecodeFrom s s) => t
-    deserializeTail = wrap decodeTail
-
 data Convertible a b = Convertible {
     convertTo :: a -> Either String b,
     convertFrom :: b -> Either String a }
@@ -70,6 +53,7 @@ coconvertble (Convertible t f) = Convertible f t
 codec :: Encoding sm a -> Decoding dm a -> Codec s sm dm a
 codec  = Codec
 
+-- | Match eof
 eof :: (Serializer sm s, Deserializer dm s) => Codec s sm dm ()
 eof = eof' where
     h :: Codec s sm dm () -> Hint s
@@ -78,14 +62,21 @@ eof = eof' where
         (Encoding $ const (return ()))
         (Decoding (deserializeEof (h eof')))
 
+-- | Match anything: produce as is and consumes all
 anything :: (Serializer sm s, Deserializer dm s) => Codec s sm dm s
 anything = codec (Encoding serializeTail) (Decoding deserializeTail)
 
+-- | Encoder
 class Encoder c s | c -> s where
     encode :: c a -> a -> Either String s
+    default encode :: (Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ k a, Encoder k s) => c a -> a -> Either String s
+    encode = encode . unwrap
 
+-- | Decoder
 class Decoder c s | c -> s where
     decode :: c a -> s -> Either String a
+    default decode :: (Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ k a, Decoder k s) => c a -> s -> Either String a
+    decode = decode . unwrap
 
 instance (Serializer sm s) => Encoder (Encoding sm) s where
     encode ~(Encoding s) = serialize . s
@@ -99,5 +90,34 @@ instance (Serializer sm s) => Encoder (Codec s sm dm) s where
 instance (Deserializer dm s) => Decoder (Codec s sm dm) s where
     decode ~(Codec _ e) = decode e
 
+-- | Make convertible by @encode@ and @decode@
 recode :: (Serializer sm s, Deserializer dm s) => Codec s sm dm a -> Convertible a s
 recode s = Convertible (encode s) (decode s)
+
+-- | Serializable value
+class (Combine f) => Serializable f a where
+    ser :: f a
+    default ser :: (GenIsoDerivable (GenSerializable f) a) => f a
+    ser = gser .:. giso
+
+-- | Generic serializable
+class (Combine f) => GenSerializable f a where
+    gser :: f a
+
+instance Serializable f a => GenSerializable f a where
+    gser = ser
+
+instance (GenSerializable f a, GenSerializable f b) => GenSerializable f (a, b) where
+    gser = gser .*. gser
+
+instance (GenSerializable f a, GenSerializable f b) => GenSerializable f (Either a b) where
+    gser = gser .+. gser
+
+instance (GenSerializable f a) => GenSerializable f (Data a) where
+    gser = gser .:. Iso (\(Data _ x) -> x) (Data "")
+
+instance (GenSerializable f a) => GenSerializable f (Ctor a) where
+    gser = gser .:. Iso (\(Ctor _ x) -> x) (Ctor "")
+
+instance (GenSerializable f a) => GenSerializable f (Stor a) where
+    gser = gser .:. Iso (\(Stor _ x) -> x) (Stor Nothing)
