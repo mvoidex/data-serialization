@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
 
 module Data.Serialization.Text.Show (
     ShowText(..),
@@ -10,17 +10,17 @@ import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Writer
 import Data.Serialization.Combine
+import Data.Serialization.Wrap
 import Data.Serialization.Codec
+import GHC.Generics
 
-newtype ShowText a = ShowText {
-    showText :: WriterT [String] (Either String) a }
-        deriving (Functor, Applicative, Alternative, Monad, MonadError String)
-
-showable :: (Show a) => Encoding ShowText a
-showable = Encoding w where
-    w = ShowText . tell . return . show
+newtype ShowText a = ShowText { showText :: EncodeTo [String] a }
+    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 
 instance MetaEncode ShowText
 instance Serializer ShowText String where
     serialize (ShowText v) = fmap unwords $ execWriterT v
     serializeTail v = ShowText $ tell [v]
+
+showable :: (Show a) => Encoding ShowText a
+showable = encodePart $ return . return . show

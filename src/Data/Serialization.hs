@@ -25,7 +25,7 @@
 -- >            .*.
 -- >            stor ser) -- selector of @String@
 -- >        .+.
--- >        ctor (stor $ many ser)) -- second constructor (@Test2) with only one selector
+-- >        ctor (stor $ many ser)) -- second constructor (@Test2@) with only one selector
 -- >    .:.
 -- >    giso -- convert generic representation to @Test@
 -- >
