@@ -1,11 +1,14 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts, ConstraintKinds #-}
 
 module Data.Iso (
-    Iso(..), coiso, makeIso
+    Iso(..), coiso,
+    Data(..), Ctor(..), Stor(..),
+    GenIso(..),
+    IsoRep, GenIsoDerivable,
+    giso
     ) where
 
-import Control.Arrow
-import Language.Haskell.TH hiding (clause)
+import GHC.Generics
 
 data Iso a b = Iso {
     morph :: a -> b,
@@ -14,89 +17,66 @@ data Iso a b = Iso {
 coiso :: Iso a b -> Iso b a
 coiso (Iso m c) = Iso c m
 
-printQ :: String -> Q ()
-printQ s = runIO $ putStrLn s
+-- | Data with name
+data Data a = Data String a
 
--- | Make Iso between data and structure, based on (,) and Either.
--- $(makeIso "foo" ''Foo)
--- expands to
--- foo :: Iso Foo a
-makeIso :: String -> Name -> Q [Dec]
-makeIso n t = do
-    i <- reify t
-    case i of
-        TyConI dec -> isoData n dec
-        _ -> do
-            report False "Iso can only be made for data"
-            return []
+-- | Constructor of type with name
+data Ctor a = Ctor String a
 
-isoData :: String -> Dec -> Q [Dec]
-isoData fname (NewtypeD _ name vars con _) = declare fname name vars $ ctors [ctorIso con]
-isoData fname (DataD _ name vars cons _) = declare fname name vars $ ctors $ map ctorIso cons
+-- | Selector with name if any
+data Stor a = Stor (Maybe String) a
 
-data CtorIso = CtorIso {
-    fromCtor :: (Pat, Exp),
-    toCtor :: (Pat, Exp),
-    domain :: Type }
+-- | Isomorphism between generic type representation and representation through products and coproducts
+class GenIso g where
+    type GenRep g
+    genTo :: g a -> GenRep g
+    genFrom :: GenRep g -> g a
 
-ctorIso :: Con -> CtorIso
-ctorIso con = case con of
-    NormalC name ts -> ctorIso' name ts
-    RecC name ts -> ctorIso' name $ map (\(_, s, t) -> (s, t)) ts
-    _ -> error "Unsupported constructor type"
-    where
-        ctorIso' name ts = CtorIso from to dom where
-            from = (ConP name (map VarP args), foldr1 tup2 (map VarE args))
-            to = (foldr1 ptup2 (map VarP args), foldl AppE (ConE name) (map VarE args))
-            dom = foldr1 ttup2 ts'
-            
-            tup2 l r = TupE [l, r]
-            ptup2 l r = TupP [l, r]
-            ttup2 l r = TupleT 2 `AppT` l `AppT` r
-            
-            args = map (\i -> mkName ("x" ++ show i)) [1 .. length ts]
-            ts' = map snd ts
+instance GenIso U1 where
+    type GenRep U1 = ()
+    genTo U1 = ()
+    genFrom () = U1
 
-data DataIso = DataIso {
-    fromData :: [(Pat, Exp)],
-    toData :: [(Pat, Exp)],
-    dataDomain :: Type }
+instance (GenIso a, GenIso b) => GenIso (a :*: b) where
+    type GenRep (a :*: b) = (GenRep a, GenRep b)
+    genTo (x :*: y) = (genTo x, genTo y)
+    genFrom (x, y) = (genFrom x :*: genFrom y)
 
-nLeft :: Name
-nLeft = mkName "Left"
+instance (GenIso a, GenIso b) => GenIso (a :+: b) where
+    type GenRep (a :+: b) = Either (GenRep a) (GenRep b)
+    genTo (L1 x) = Left (genTo x)
+    genTo (R1 y) = Right (genTo y)
+    genFrom (Left x) = L1 (genFrom x)
+    genFrom (Right y) = R1 (genFrom y)
 
-nRight :: Name
-nRight = mkName "Right"
+instance (GenIso a, Datatype c) => GenIso (M1 D c a) where
+    type GenRep (M1 D c a) = Data (GenRep a)
+    genTo v@(M1 x) = Data (datatypeName v) (genTo x)
+    genFrom (Data _ x) = M1 (genFrom x)
 
-nEither :: Name
-nEither = mkName "Either"
+instance (GenIso a, Constructor c) => GenIso (M1 C c a) where
+    type GenRep (M1 C c a) = Ctor (GenRep a)
+    genTo v@(M1 x) = Ctor (conName v) (genTo x)
+    genFrom (Ctor _ x) = M1 (genFrom x)
 
-nIso :: Name
-nIso = mkName "Iso"
+instance (GenIso a, Selector c) => GenIso (M1 S c a) where
+    type GenRep (M1 S c a) = Stor (GenRep a)
+    genTo v@(M1 x) = Stor (nm $ selName v) (genTo x) where
+        nm "" = Nothing
+        nm s = Just s
+    genFrom (Stor _ x) = M1 (genFrom x)
 
-ctors :: [CtorIso] -> DataIso
-ctors = foldr1 combine . map dataIso where
-    dataIso (CtorIso f t d) = DataIso [f] [t] d
-    combine (DataIso fl tl dl) (DataIso fr tr dr) = DataIso f t d where
-        f = map (second (AppE (ConE nLeft))) fl ++ map (second (AppE (ConE nRight))) fr
-        t = map (first (ConP nLeft . return)) tl ++ map (first (ConP nRight . return )) tr
-        d = ConT nEither `AppT` dl `AppT` dr
+instance GenIso (K1 i a) where
+    type GenRep (K1 i a) = a
+    genTo (K1 x) = x
+    genFrom x = K1 x
 
-clause :: (Pat, Exp) -> Clause
-clause (p, e) = Clause [p] (NormalB e) []
+-- | Representation of type
+type IsoRep a = GenRep (Rep a)
 
-bndrName :: TyVarBndr -> Name
-bndrName (PlainTV n) = n
-bndrName (KindedTV n _) = n
+-- | Constraint whether type can be automatically derived thgough its representation
+type GenIsoDerivable cls a = (Generic a, GenIso (Rep a), cls (IsoRep a))
 
-declare :: String -> Name -> [TyVarBndr] -> DataIso -> Q [Dec]
-declare fname name vars (DataIso from to dom) = return [decl, def] where
-    decl = SigD fName (ForallT vars [] $ (ConT nIso `AppT` thisT `AppT` dom))
-    def = FunD fName [Clause [] (NormalB (ConE nIso `AppE` (VarE f) `AppE` (VarE cof))) wheres] where
-        f = mkName "morphism"
-        cof = mkName "comorphism"
-        wheres = [morph, comorph]
-        morph = FunD f (map clause from)
-        comorph = FunD cof (map clause to)
-    thisT = foldl AppT (ConT name) (map (VarT . bndrName) vars)
-    fName = mkName fname
+-- | Generic iso between type and its representation
+giso :: (Generic a, GenIso (Rep a)) => Iso a (IsoRep a)
+giso = Iso (genTo . from) (to . genFrom)
