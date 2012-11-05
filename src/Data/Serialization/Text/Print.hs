@@ -12,13 +12,14 @@ import Control.Monad.Error
 import Data.String
 import Data.Serialization.Combine
 import Data.Serialization.Wrap
+import Data.Serialization.Generic
 import Data.Serialization.Codec
 import GHC.Generics
 
 newtype Print s a = Print { runPrint :: EncodeTo s a }
     deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 
-instance MetaEncode (Print s)
+instance GenericEncode (Print s)
 instance (Monoid s) => Serializer (Print s) s
 
 printWith :: (Monoid s) => (a -> s) -> Encoding (Print s) a

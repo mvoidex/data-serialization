@@ -11,13 +11,14 @@ import Control.Monad.Error
 import Control.Monad.State
 import Data.Serialization.Combine
 import Data.Serialization.Wrap
+import Data.Serialization.Generic
 import Data.Serialization.Codec
 import GHC.Generics
 
 newtype ReadText a = ReadText { readText :: DecodeFrom String a }
     deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 
-instance MetaDecode ReadText
+instance GenericDecode ReadText
 instance Deserializer ReadText String
 
 readable :: (Read a) => Decoding ReadText a

@@ -18,6 +18,7 @@ library
         Data.Iso
         Data.Serialization
         Data.Serialization.Combine
+        Data.Serialization.Generic
         Data.Serialization.Codec
         Data.Serialization.Combinators
         Data.Serialization.Wrap

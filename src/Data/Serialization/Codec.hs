@@ -10,14 +10,13 @@ module Data.Serialization.Codec (
     eof, anything,
     -- * Encoding and decoding
     Encoder(..), Decoder(..),
-    recode,
-    -- * Serializable
-    Serializable(..), GenSerializable(..)
+    recode
     ) where
 
 import Control.Applicative
 import Data.Monoid
 import Data.Serialization.Combine
+import Data.Serialization.Generic
 import Data.Serialization.Wrap
 
 -- | Encoder and decoder
@@ -28,12 +27,14 @@ data Codec s sm dm a = Codec {
 type CodecT s sm dm a = Codec s (sm s) (dm s) a
 
 instance (Combine (Encoding sm), Combine (Decoding dm)) => Combine (Codec s sm dm) where
-    ~(Codec sl dl) .*. ~(Codec sr dr) = Codec (sl .*. sr) (dl .*. dr)
-    ~(Codec sl dl) .+. ~(Codec sr dr) = Codec (sl .+. sr) (dl .+. dr)
-    ~(Codec s d) .:. iso = Codec (s .:. iso) (d .:. iso)
-    dat ~(Codec s d) = Codec (dat s) (dat d)
-    ctor ~(Codec s d) = Codec (ctor s) (ctor d)
-    stor ~(Codec s d) = Codec (stor s) (stor d)
+    ~(Codec el dl) .*. ~(Codec er dr) = Codec (el .*. er) (dl .*. dr)
+    ~(Codec el dl) .+. ~(Codec er dr) = Codec (el .+. er) (dl .+. dr)
+    ~(Codec e d) .:. iso = Codec (e .:. iso) (d .:. iso)
+
+instance (GenericCombine (Encoding sm), GenericCombine (Decoding dm)) => GenericCombine (Codec s sm dm) where
+    genericData s ~(Codec e d) = Codec (genericData s e) (genericData s d)
+    genericCtor s ~(Codec e d) = Codec (genericCtor s e) (genericCtor s d)
+    genericStor s ~(Codec e d) = Codec (genericStor s e) (genericStor s d)
 
 instance (CombineM (Encoding sm), CombineM (Decoding dm)) => CombineM (Codec s sm dm) where
     ~(Codec sl dl) .|. ~(Codec sr dr) = Codec (sl .|. sr) (dl .|. dr)
@@ -93,31 +94,3 @@ instance (Deserializer dm s) => Decoder (Codec s sm dm) s where
 -- | Make convertible by @encode@ and @decode@
 recode :: (Serializer sm s, Deserializer dm s) => Codec s sm dm a -> Convertible a s
 recode s = Convertible (encode s) (decode s)
-
--- | Serializable value
-class (Combine f) => Serializable f a where
-    ser :: f a
-    default ser :: (GenIsoDerivable (GenSerializable f) a) => f a
-    ser = gser .:. giso
-
--- | Generic serializable
-class (Combine f) => GenSerializable f a where
-    gser :: f a
-
-instance Serializable f a => GenSerializable f a where
-    gser = ser
-
-instance (GenSerializable f a, GenSerializable f b) => GenSerializable f (a, b) where
-    gser = gser .*. gser
-
-instance (GenSerializable f a, GenSerializable f b) => GenSerializable f (Either a b) where
-    gser = gser .+. gser
-
-instance (GenSerializable f a) => GenSerializable f (Data a) where
-    gser = gser .:. Iso (\(Data _ x) -> x) (Data "")
-
-instance (GenSerializable f a) => GenSerializable f (Ctor a) where
-    gser = gser .:. Iso (\(Ctor _ x) -> x) (Ctor "")
-
-instance (GenSerializable f a) => GenSerializable f (Stor a) where
-    gser = gser .:. Iso (\(Stor _ x) -> x) (Stor Nothing)

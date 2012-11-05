@@ -7,14 +7,14 @@
 -- >newtype ToCSV a = ToCSV { toCSV :: EncodeTo [String] a }
 -- >    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 -- >
--- >instance MetaEncode ToCSV
+-- >instance GenericEncode ToCSV
 -- >instance Serializer ToCSV [String]
 -- >
 -- >newtype FromCSV a = FromCSV { fromCSV :: DecodeFrom [String] a }
 -- >    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 -- >
 -- >-- Implement functions to collect metadata, default implementation just throws it away
--- >instance MetaDecode FromCSV
+-- >instance GenericDecode FromCSV
 -- >instance Deserializer FromCSV [String]
 --
 -- And that's all. Now write primitive serializers and use.
@@ -53,9 +53,10 @@ import Data.Monoid
 import GHC.Generics
 
 import Data.Serialization.Combine
+import Data.Serialization.Generic
 
 -- | Derive to support serialization for @Encoding@.
-class (MetaEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
+class (GenericEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
     serialize :: sm () -> Either String s
     serializeTail :: s -> sm ()
 
@@ -65,7 +66,7 @@ class (MetaEncode sm, Monad sm, Applicative sm, Alternative sm) => Serializer sm
     serializeTail = wrap . encodeTail
 
 -- | Derive to support deserialization for @Decoding@
-class (MetaDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
+class (GenericDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
     deserialize :: dm a -> s -> Either String a
     deserializeEof :: Hint s -> dm ()
     deserializeTail :: dm s
@@ -77,10 +78,10 @@ class (MetaDecode dm, Monad dm, Applicative dm, Alternative dm) => Deserializer 
     default deserializeTail :: (Monoid s, Eq s, Wrapper t, t ~ dm s, WrappedType (IsoRep t) ~ DecodeFrom s s) => t
     deserializeTail = wrap decodeTail
 
--- | Wrap this with newtype and derive from @MetaEncode@ and @Serializer@
+-- | Wrap this with newtype and derive from @GenericEncode@ and @Serializer@
 type EncodeTo s a = WriterT s (Either String) a
 
--- | Wrap this with newtype and derive from @MetaDecode@ and @Deserializer@
+-- | Wrap this with newtype and derive from @GenericDecode@ and @Deserializer@
 type DecodeFrom s a = ErrorT String (State s) a
 
 -- | Helper function to produce some output

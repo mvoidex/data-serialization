@@ -30,19 +30,34 @@ To define custom serializer use functions from <code>Combine</code> class and <c
 <pre>
 test2 :: Codec String ShowText ReadText Test
 test2 =
-    dat ( -- datatype
-        ctor ( -- first constructor, @Test1@
-            stor ser -- selector of @Int@
-            .*.
-            stor ser) -- selector of @String@
-        .+.
-        ctor (stor $ many ser)) -- second constructor (Test2) with only one selector
+    dat_ ( -- datatype
+        ctor_ ( -- first constructor, @Test1@
+            field_ ser -- selector of @Int@
+            .**.
+            field_ ser) -- selector of @String@
+        .++.
+        ctor_ (field_ $ many ser)) -- second constructor (Test2) with only one selector
     .:.
     giso -- convert generic representation to Test
 
 -- Note the difference between test and test2:
 -- encode test2 (Test2 [1,2,3]) = Right "1.0 2.0 3.0"
 </pre>
+
+The only difference between 'test2' and generic serializer is in serializer for [Double]. We can replace any part of serializer wih generic one. In this case we don't want to write serializer for first constructor:
+
+<pre>
+test2' :: Codec String ShowText ReadText Test
+test2' =
+    dat_ (
+        gser -- Using generic serializer for first constructor
+        .++.
+        ctor_ (field_ $ many ser)) -- And custom for second
+    .:.
+    giso
+</pre>
+
+We used <code>dat_</code>, <code>ctor_</code> and <code>field_</code> because we didn't want to rename them (or it doesn't matter for simple text serializer). But if we want to, we can use <code>dat</code>, <code>ctor</code> and <code>field</code> to provide name.
 
 Creating new serializer
 ------------------
@@ -91,6 +106,7 @@ instance Combine ZeroDelim where
     l .*. r = ZeroDelim $ runZero l .* literal ser (0 :: Int) .*. runZero r
     l .+. r = ZeroDelim $ runZero l .+. runZero r
     s .:. iso = ZeroDelim $ runZero s .:. iso
+instance GenericCombine ZeroDelim
 
 instance Encoder ZeroDelim String
 instance Decoder ZeroDelim String
