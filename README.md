@@ -32,11 +32,11 @@ test2 :: Codec String ShowText ReadText Test
 test2 =
     dat_ ( -- datatype
         ctor_ ( -- first constructor, @Test1@
-            field_ ser -- selector of @Int@
-            .**.
-            field_ ser) -- selector of @String@
-        .++.
-        ctor_ (field_ $ many ser)) -- second constructor (Test2) with only one selector
+            stor_ ser -- selector of @Int@
+            .*.
+            stor_ ser) -- selector of @String@
+        .+.
+        ctor_ (stor_ $ many ser)) -- second constructor (Test2) with only one selector
     .:.
     giso -- convert generic representation to Test
 
@@ -51,13 +51,13 @@ test2' :: Codec String ShowText ReadText Test
 test2' =
     dat_ (
         gser -- Using generic serializer for first constructor
-        .++.
-        ctor_ (field_ $ many ser)) -- And custom for second
+        .+.
+        ctor_ (stor_ $ many ser)) -- And custom for second
     .:.
     giso
 </pre>
 
-We used <code>dat_</code>, <code>ctor_</code> and <code>field_</code> because we didn't want to rename them (or it doesn't matter for simple text serializer). But if we want to, we can use <code>dat</code>, <code>ctor</code> and <code>field</code> to provide name.
+We used <code>dat_</code>, <code>ctor_</code> and <code>stor_</code> because we didn't want to rename them (or it doesn't matter for simple text serializer). But if we want to, we can use <code>dat</code>, <code>ctor</code> and <code>stor</code> to provide name.
 
 Creating new serializer
 ------------------

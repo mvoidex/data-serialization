@@ -21,11 +21,11 @@
 -- >test2 =
 -- >    dat_ ( -- datatype
 -- >        ctor_ ( -- first constructor, @Test1@
--- >            field_ ser -- selector of @Int@
--- >            .**.
--- >            field_ ser) -- selector of @String@
--- >        .++.
--- >        ctor_ (field_ $ many ser)) -- second constructor (@Test2@) with only one selector
+-- >            stor_ ser -- selector of @Int@
+-- >            .*.
+-- >            stor_ ser) -- selector of @String@
+-- >        .+.
+-- >        ctor_ (stor_ $ many ser)) -- second constructor (@Test2@) with only one selector
 -- >    .:.
 -- >    giso -- convert generic representation to @Test@
 -- >
@@ -38,12 +38,12 @@
 -- >test2' =
 -- >    dat_ (
 -- >        gser -- Using generic serializer for first constructor
--- >        .++.
--- >        ctor_ (field_ $ many ser)) -- And custom for second
+-- >        .+.
+-- >        ctor_ (stor_ $ many ser)) -- And custom for second
 -- >    .:.
 -- >    giso
 --
--- We used @dat_@, @ctor_@ and @field_@ because we didn't want to rename them (or it doesn't matter for simple text serializer). But if we want to, we can use @dat@, @ctor@ and @field@ to provide name.
+-- We used @dat_@, @ctor_@ and @stor_@ because we didn't want to rename them (or it doesn't matter for simple text serializer). But if we want to, we can use @dat@, @ctor@ and @stor@ to provide name.
 --
 -- Module @Wrap@ provides simple way to create new serializers.
 --

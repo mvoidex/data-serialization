@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, MultiParamTypeClasses, FlexibleInstances, DefaultSignatures, FlexibleContexts #-}
+{-# LANGUAGE TypeOperators, MultiParamTypeClasses, FlexibleInstances, DefaultSignatures, FlexibleContexts, ConstraintKinds, UndecidableInstances #-}
 
 module Data.Serialization.Generic (
     -- * Generic serialization classes
@@ -10,10 +10,6 @@ module Data.Serialization.Generic (
     dat, dat_,
     ctor, ctor_,
     stor, stor_,
-    field, field_,
-    val,
-    (.**.),
-    (.++.),
 
     module Data.Serialization.Combine
     ) where
@@ -23,9 +19,6 @@ import Data.Function (fix)
 import GHC.Generics
 
 import Data.Serialization.Combine
-
-infixr 7 .**.
-infixr 6 .++.
 
 -- | Generic serialize operations for data, constructor and selector
 class Combine f => GenericCombine f where
@@ -75,83 +68,54 @@ instance (Alternative m, GenericDecode m) => GenericCombine (Decoding m) where
 -- | Serializable class
 class (Combine f) => Serializable f a where
     ser :: f a
-    default ser :: (Generic a, GenericSerializable f (Rep a)) => f a
+    default ser :: (GenIsoDerivable (GenericSerializable f) a) => f a
     ser = gser .:. giso
 
 -- | Generic serializable
-class (GenericCombine f) => GenericSerializable f a where
-    gser :: f (a p)
+class GenericCombine f => GenericSerializable f a where
+    gser :: f a
 
-instance (GenericCombine f, Serializable f a) => GenericSerializable f (K1 i a) where
-    gser = val ser
-
-instance (GenericSerializable f a, Datatype c) => GenericSerializable f (M1 D c a) where
+instance (GenericSerializable f a, Datatype c) => GenericSerializable f (Data c a) where
     gser = dat_ gser
 
-instance (GenericSerializable f a, Constructor c) => GenericSerializable f (M1 C c a) where
+instance (GenericSerializable f a, Constructor c) => GenericSerializable f (Ctor c a) where
     gser = ctor_ gser
 
-instance (GenericSerializable f a, Selector c) => GenericSerializable f (M1 S c a) where
-    gser = stor_ gser
+instance (GenericCombine f, Serializable f a, Selector c) => GenericSerializable f (Stor c a) where
+    gser = stor_ ser
 
-instance (GenericSerializable f a, GenericSerializable f b) => GenericSerializable f (a :*: b) where
-    gser = gser .**. gser
+instance (GenericSerializable f a, GenericSerializable f b) => GenericSerializable f (a, b) where
+    gser = gser .*. gser
 
-instance (GenericSerializable f a, GenericSerializable f b) => GenericSerializable f (a :+: b) where
-    gser = gser .++. gser
+instance (GenericSerializable f a, GenericSerializable f b) => GenericSerializable f (Either a b) where
+    gser = gser .+. gser
 
 -- | Serializer of generic @Datatype@ with explicit name
-dat :: (GenericCombine f, Datatype c) => String -> f (a p) -> f (M1 D c a p)
-dat name s = genericData name s .:. Iso unM1 M1
+dat :: (GenericCombine f, Datatype c) => String -> f a -> f (Data c a)
+dat name s = genericData name s .:. Iso unData Data
 
 -- | Serializer of generic @Datatype@ with @datatypeName@
-dat_ :: (GenericCombine f, Datatype c) => f (a p) -> f (M1 D c a p)
-dat_ s = fix $ \r -> dat (datatypeName $ dummy r) s where
-    dummy :: GenericCombine f => f (M1 D c a p) -> M1 D c a p
+dat_ :: (GenericCombine f, Datatype c) => f a -> f (Data c a)
+dat_ s = fix $ \r -> dat (dataName $ dummy r) s where
+    dummy :: GenericCombine f => f (Data c a) -> Data c a
     dummy _ = undefined
 
 -- | Serializer of generic @Constructor@ with explicit name
-ctor :: (GenericCombine f, Constructor c) => String -> f (a p) -> f (M1 C c a p)
-ctor name s = genericCtor name s .:. Iso unM1 M1
+ctor :: (GenericCombine f, Constructor c) => String -> f a -> f (Ctor c a)
+ctor name s = genericCtor name s .:. Iso unCtor Ctor
 
 -- | Serializer of generic @Contructor@ with @conName@
-ctor_ :: (GenericCombine f, Constructor c) => f (a p) -> f (M1 C c a p)
-ctor_ s = fix $ \r -> ctor (conName $ dummy r) s where
-    dummy :: GenericCombine f => f (M1 C c a p) -> M1 C c a p
+ctor_ :: (GenericCombine f, Constructor c) => f a -> f (Ctor c a)
+ctor_ s = fix $ \r -> ctor (ctorName $ dummy r) s where
+    dummy :: GenericCombine f => f (Ctor c a) -> Ctor c a
     dummy _ = undefined
 
 -- | Serializer of generic @Selector@ with explicit name
-stor :: (GenericCombine f, Selector c) => String -> f (a p) -> f (M1 S c a p)
-stor name s = genericStor name s .:. Iso unM1 M1
+stor :: (GenericCombine f, Selector c) => String -> f a -> f (Stor c a)
+stor name s = genericStor name s .:. Iso unStor Stor
 
 -- | Serializer of generic @Selector@ with @selName@
-stor_ :: (GenericCombine f, Selector c) => f (a p) -> f (M1 S c a p)
-stor_ s = fix $ \r -> stor (selName $ dummy r) s where
-    dummy :: GenericCombine f => f (M1 S c a p) -> M1 S c a p
+stor_ :: (GenericCombine f, Selector c) => f a -> f (Stor c a)
+stor_ s = fix $ \r -> stor (storName $ dummy r) s where
+    dummy :: GenericCombine f => f (Stor c a) -> Stor c a
     dummy _ = undefined
-
--- | @stor@ with @val@
-field :: (GenericCombine f, Selector c) => String -> f a -> f (M1 S c (K1 i a) p)
-field name = stor name . val
-
--- | @stor_@ with @val@
-field_ :: (GenericCombine f, Selector c) => f a -> f (M1 S c (K1 i a) p)
-field_ = stor_ . val
-
--- | Serializer of @K1@ wrapper
-val :: (Combine f) => f a -> f (K1 i a p)
-val s = s .:. Iso unK1 K1
-
--- | Serializer of generic @:*:@
-(.**.) :: Combine f => f (a p) -> f (b p) -> f ((a :*: b) p)
-l .**. r = (l .*. r) .:. Iso de en where
-    de (x :*: y) = (x, y)
-    en (x, y) = (x :*: y)
-
--- | Serializer of generic @:+:@
-(.++.) :: Combine f => f (a p) -> f (b p) -> f ((a :+: b) p)
-l .++. r = (l .+. r) .:. Iso de en where
-    de (L1 x) = Left x
-    de (R1 y) = Right y
-    en (Left x) = L1 x
-    en (Right y) = R1 y
