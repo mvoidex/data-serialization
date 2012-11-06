@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeOperators, FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
 
 module Data.Serialization.Combine (
+    MonadFail(..),
     Combine(..), CombineM(..),
     Encoding(..),
     Decoding(..),

@@ -62,8 +62,8 @@ class (Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
 
     default serialize :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => t -> Either String s
     serialize = encodeTo . unwrap
-    default serializeTail :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => s -> t
-    serializeTail = wrap . encodeTail
+    default serializeTail :: (MonadWriter s sm) => s -> sm ()
+    serializeTail = tell
 
 -- | Derive to support deserialization for @Decoding@
 class (Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
@@ -73,10 +73,15 @@ class (Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
 
     default deserialize :: (Monoid s, Eq s, Wrapper t, t ~ dm a, WrappedType (IsoRep t) ~ DecodeFrom s a) => t -> s -> Either String a
     deserialize = decodeFrom . unwrap
-    default deserializeEof :: (Monoid s, Eq s, Wrapper t, t ~ dm (), WrappedType (IsoRep t) ~ DecodeFrom s ()) => Hint s -> t
-    deserializeEof = wrap . decodeEof
-    default deserializeTail :: (Monoid s, Eq s, Wrapper t, t ~ dm s, WrappedType (IsoRep t) ~ DecodeFrom s s) => t
-    deserializeTail = wrap decodeTail
+    default deserializeEof :: (Monoid s, Eq s, MonadState s dm, MonadFail dm) => Hint s -> dm ()
+    deserializeEof _ = do
+        st <- get
+        when (st /= mempty) $ failWith "EOF expected"
+    default deserializeTail :: (Monoid s, MonadState s dm) => dm s
+    deserializeTail = do
+        obj <- get
+        put mempty
+        return obj
 
 -- | Wrap this with newtype and derive from @GenericEncode@ and @Serializer@
 type EncodeTo s a = WriterT s (Either String) a

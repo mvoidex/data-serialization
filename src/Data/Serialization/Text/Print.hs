@@ -17,7 +17,7 @@ import Data.Serialization.Codec
 import GHC.Generics
 
 newtype Print s a = Print { runPrint :: EncodeTo s a }
-    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
+    deriving (Functor, Applicative, Alternative, Monad, MonadError String, MonadWriter s, Generic)
 
 instance GenericEncode (Print s)
 instance (Monoid s) => Serializer (Print s) s

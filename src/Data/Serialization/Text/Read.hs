@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, GeneralizedNewtypeDeriving, OverlappingInstances #-}
 
 module Data.Serialization.Text.Read (
     ReadText(..),
@@ -16,7 +16,7 @@ import Data.Serialization.Codec
 import GHC.Generics
 
 newtype ReadText a = ReadText { readText :: DecodeFrom String a }
-    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
+    deriving (Functor, Applicative, Alternative, Monad, MonadFail, MonadState String, MonadError String, Generic)
 
 instance GenericDecode ReadText
 instance Deserializer ReadText String
