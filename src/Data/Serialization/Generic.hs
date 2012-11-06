@@ -7,9 +7,9 @@ module Data.Serialization.Generic (
     GenericDecode(..),
     Serializable(..), GenericSerializable(..),
     -- * Functions to serialize parts of @Generics@
-    dat, dat_,
-    ctor, ctor_,
-    stor, stor_,
+    dat, dat_, datT,
+    ctor, ctor_, ctorT,
+    stor, stor_, storT,
 
     module Data.Serialization.Combine
     ) where
@@ -94,9 +94,15 @@ instance (GenericSerializable f a, GenericSerializable f b) => GenericSerializab
 dat :: (GenericCombine f, Datatype c) => String -> f a -> f (Data c a)
 dat name s = genericData name s .:. Iso unData Data
 
--- | Serializer of generic @Datatype@ with @datatypeName@
+-- | Serializer of generic @Datatype@ with @dataName@
 dat_ :: (GenericCombine f, Datatype c) => f a -> f (Data c a)
 dat_ s = fix $ \r -> dat (dataName $ dummy r) s where
+    dummy :: GenericCombine f => f (Data c a) -> Data c a
+    dummy _ = undefined
+
+-- | Serializer of @Datatype@, providing @dataName@ to your serializer
+datT :: (GenericCombine f, Datatype c) => (String -> f a) -> f (Data c a)
+datT s = fix $ \r -> dat (dataName $ dummy r) (s (dataName $ dummy r)) where
     dummy :: GenericCombine f => f (Data c a) -> Data c a
     dummy _ = undefined
 
@@ -104,9 +110,15 @@ dat_ s = fix $ \r -> dat (dataName $ dummy r) s where
 ctor :: (GenericCombine f, Constructor c) => String -> f a -> f (Ctor c a)
 ctor name s = genericCtor name s .:. Iso unCtor Ctor
 
--- | Serializer of generic @Contructor@ with @conName@
+-- | Serializer of generic @Contructor@ with @ctorName@
 ctor_ :: (GenericCombine f, Constructor c) => f a -> f (Ctor c a)
 ctor_ s = fix $ \r -> ctor (ctorName $ dummy r) s where
+    dummy :: GenericCombine f => f (Ctor c a) -> Ctor c a
+    dummy _ = undefined
+
+-- | Serializer of @Constructor@, providing @ctorName@ to your serializer
+ctorT :: (GenericCombine f, Constructor c) => (String -> f a) -> f (Ctor c a)
+ctorT s = fix $ \r -> ctor (ctorName $ dummy r) (s (ctorName $ dummy r)) where
     dummy :: GenericCombine f => f (Ctor c a) -> Ctor c a
     dummy _ = undefined
 
@@ -114,8 +126,14 @@ ctor_ s = fix $ \r -> ctor (ctorName $ dummy r) s where
 stor :: (GenericCombine f, Selector c) => String -> f a -> f (Stor c a)
 stor name s = genericStor name s .:. Iso unStor Stor
 
--- | Serializer of generic @Selector@ with @selName@
+-- | Serializer of generic @Selector@ with @storName@
 stor_ :: (GenericCombine f, Selector c) => f a -> f (Stor c a)
 stor_ s = fix $ \r -> stor (storName $ dummy r) s where
+    dummy :: GenericCombine f => f (Stor c a) -> Stor c a
+    dummy _ = undefined
+
+-- | Serializer of @Constructor@, providing @ctorName@ to your serializer
+storT :: (GenericCombine f, Selector c) => (String -> f a) -> f (Stor c a)
+storT s = fix $ \r -> stor (storName $ dummy r) (s (storName $ dummy r)) where
     dummy :: GenericCombine f => f (Stor c a) -> Stor c a
     dummy _ = undefined
