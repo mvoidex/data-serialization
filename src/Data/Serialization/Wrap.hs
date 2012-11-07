@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DefaultSignatures, TypeFamilies, FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DefaultSignatures, TypeFamilies #-}
 
 -- | Module provides helpers to implement serializer as simple as possible
 --
@@ -56,7 +56,7 @@ import Data.Serialization.Combine
 import Data.Serialization.Generic
 
 -- | Derive to support serialization for @Encoding@.
-class (Monad sm, Applicative sm, Alternative sm) => Serializer sm s | sm -> s where
+class (Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
     serialize :: sm () -> Either String s
     serializeTail :: s -> sm ()
 
@@ -66,7 +66,7 @@ class (Monad sm, Applicative sm, Alternative sm) => Serializer sm s | sm -> s wh
     serializeTail = tell
 
 -- | Derive to support deserialization for @Decoding@
-class (Monad dm, Applicative dm, Alternative dm) => Deserializer dm s | dm -> s where
+class (Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
     deserialize :: dm a -> s -> Either String a
     deserializeEof :: Hint s -> dm ()
     deserializeTail :: dm s
