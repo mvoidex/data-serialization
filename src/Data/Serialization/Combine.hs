@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE TypeOperators, FlexibleInstances, FlexibleContexts, UndecidableInstances, OverlappingInstances #-}
 
 module Data.Serialization.Combine (
     MonadFail(..),
