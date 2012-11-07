@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DefaultSignatures, TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, DefaultSignatures, TypeFamilies #-}
 
 -- | Module provides helpers to implement serializer as simple as possible
 --
@@ -90,18 +90,18 @@ type EncodeTo s a = WriterT s (Either String) a
 type DecodeFrom s a = ErrorT String (State s) a
 
 -- | Helper function to produce some output
-encodePart :: (Monoid s, Wrapper t, t ~ c (), WrappedType (IsoRep t) ~ EncodeTo s ()) => (a -> Either String s) -> Encoding c a
-encodePart f = Encoding $ wrap . either (lift . Left) tell . f
+encodePart :: (MonadWriter s c, MonadError String c) => (a -> Either String s) -> Encoding c a
+encodePart f = Encoding $ either throwError tell . f
 
 -- | Helper function to consume some input
-decodePart :: (Monoid s, Eq s, Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ DecodeFrom s a) => (s -> Either String (a, s)) -> Decoding c a
-decodePart f = Decoding $ wrap $ do
-    s <- lift get
+decodePart :: (Monoid s, Eq s, MonadState s c, MonadError String c) => (s -> Either String (a, s)) -> Decoding c a
+decodePart f = Decoding $ do
+    s <- get
     if s == mempty
         then throwError "EOF"
         else do
-            (v, s') <- ErrorT $ return $ f s
-            lift $ put s'
+            (v, s') <- either throwError return $ f s
+            put s'
             return v
 
 -- | Helper for @serialize@

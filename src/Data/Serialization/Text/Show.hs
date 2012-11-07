@@ -16,7 +16,7 @@ import Data.Serialization.Codec
 import GHC.Generics
 
 newtype ShowText a = ShowText { showText :: EncodeTo [String] a }
-    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
+    deriving (Functor, Applicative, Alternative, Monad, MonadError String, MonadWriter [String], Generic)
 
 instance GenericEncode ShowText
 instance Serializer ShowText String where
