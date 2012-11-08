@@ -56,7 +56,7 @@ import Data.Serialization.Combine
 import Data.Serialization.Generic
 
 -- | Derive to support serialization for @Encoding@.
-class (Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
+class (Monad sm, Applicative sm, Alternative sm) => Serializer s sm where
     serialize :: sm () -> Either String s
     serializeTail :: s -> sm ()
 
@@ -66,7 +66,7 @@ class (Monad sm, Applicative sm, Alternative sm) => Serializer sm s where
     serializeTail = tell
 
 -- | Derive to support deserialization for @Decoding@
-class (Monad dm, Applicative dm, Alternative dm) => Deserializer dm s where
+class (Monad dm, Applicative dm, Alternative dm) => Deserializer s dm where
     deserialize :: dm a -> s -> Either String a
     deserializeEof :: Hint s -> dm ()
     deserializeTail :: dm s

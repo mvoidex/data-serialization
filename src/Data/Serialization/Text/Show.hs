@@ -19,7 +19,7 @@ newtype ShowText a = ShowText { showText :: EncodeTo [String] a }
     deriving (Functor, Applicative, Alternative, Monad, MonadError String, MonadWriter [String], Generic)
 
 instance GenericEncode ShowText
-instance Serializer ShowText String where
+instance Serializer String ShowText where
     serialize (ShowText v) = fmap unwords $ execWriterT v
     serializeTail v = ShowText $ tell [v]
 

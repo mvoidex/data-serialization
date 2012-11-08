@@ -19,7 +19,7 @@ newtype ReadText a = ReadText { readText :: DecodeFrom String a }
     deriving (Functor, Applicative, Alternative, Monad, MonadFail, MonadState String, MonadError String, Generic)
 
 instance GenericDecode ReadText
-instance Deserializer ReadText String
+instance Deserializer String ReadText
 
 readable :: (Read a) => Decoding ReadText a
 readable = decodePart f where

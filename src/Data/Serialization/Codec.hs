@@ -55,7 +55,7 @@ codec :: Encoding sm a -> Decoding dm a -> Codec s sm dm a
 codec  = Codec
 
 -- | Match eof
-eof :: (Serializer sm s, Deserializer dm s) => Codec s sm dm ()
+eof :: (Serializer s sm, Deserializer s dm) => Codec s sm dm ()
 eof = eof' where
     h :: Codec s sm dm () -> Hint s
     h _ = Hint
@@ -64,7 +64,7 @@ eof = eof' where
         (Decoding (deserializeEof (h eof')))
 
 -- | Match anything: produce as is and consumes all
-anything :: (Serializer sm s, Deserializer dm s) => Codec s sm dm s
+anything :: (Serializer s sm, Deserializer s dm) => Codec s sm dm s
 anything = codec (Encoding serializeTail) (Decoding deserializeTail)
 
 -- | Encoder
@@ -79,18 +79,18 @@ class Decoder c s | c -> s where
     default decode :: (Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ k a, Decoder k s) => c a -> s -> Either String a
     decode = decode . unwrap
 
-instance (Serializer sm s) => Encoder (Encoding sm) s where
+instance (Serializer s sm) => Encoder (Encoding sm) s where
     encode ~(Encoding s) = serialize . s
 
-instance (Deserializer dm s) => Decoder (Decoding dm) s where
+instance (Deserializer s dm) => Decoder (Decoding dm) s where
     decode ~(Decoding d) = deserialize d
 
-instance (Serializer sm s) => Encoder (Codec s sm dm) s where
+instance (Serializer s sm) => Encoder (Codec s sm dm) s where
     encode ~(Codec e _) = encode e
 
-instance (Deserializer dm s) => Decoder (Codec s sm dm) s where
+instance (Deserializer s dm) => Decoder (Codec s sm dm) s where
     decode ~(Codec _ e) = decode e
 
 -- | Make convertible by @encode@ and @decode@
-recode :: (Serializer sm s, Deserializer dm s) => Codec s sm dm a -> Convertible a s
+recode :: (Serializer s sm, Deserializer s dm) => Codec s sm dm a -> Convertible a s
 recode s = Convertible (encode s) (decode s)

@@ -89,7 +89,7 @@ intercalated1 p l = p .*. many (l *. p) .:. list
 
 -- | Streaming parsers
 (<~>)
-    :: (Serializer sm' i, Deserializer dm' i, CombineM (Codec s sm dm))
+    :: (Serializer i sm', Deserializer i dm', CombineM (Codec s sm dm))
     => Codec s sm dm i
     -> Codec i sm' dm' a
     -> Codec s sm dm a
