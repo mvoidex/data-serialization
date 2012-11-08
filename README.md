@@ -69,14 +69,14 @@ newtype ToCSV a = ToCSV { toCSV :: EncodeTo [String] a }
     deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 
 instance MetaEncode ToCSV
-instance Serializer ToCSV [String]
+instance Serializer [String] ToCSV
 
 newtype FromCSV a = FromCSV { fromCSV :: DecodeFrom [String] a }
     deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 
 -- Implement functions to collect metadata, default implementation just throws it away
 instance MetaDecode FromCSV
-instance Deserializer FromCSV [String]
+instance Deserializer [String] FromCSV
 </pre>
 
 And that's all. Now write primitive serializers and use.

@@ -8,14 +8,14 @@
 -- >    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 -- >
 -- >instance GenericEncode ToCSV
--- >instance Serializer ToCSV [String]
+-- >instance Serializer [String] ToCSV
 -- >
 -- >newtype FromCSV a = FromCSV { fromCSV :: DecodeFrom [String] a }
 -- >    deriving (Functor, Applicative, Alternative, Monad, MonadError String, Generic)
 -- >
 -- >-- Implement functions to collect metadata, default implementation just throws it away
 -- >instance GenericDecode FromCSV
--- >instance Deserializer FromCSV [String]
+-- >instance Deserializer [String] FromCSV
 --
 -- And that's all. Now write primitive serializers and use.
 --
