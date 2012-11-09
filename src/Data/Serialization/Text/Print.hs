@@ -20,7 +20,8 @@ newtype Print s a = Print { runPrint :: EncodeTo s a }
     deriving (Functor, Applicative, Alternative, Monad, MonadError String, MonadWriter s, Generic)
 
 instance GenericEncode (Print s)
-instance (Monoid s) => Serializer s (Print s)
+instance (Monoid s) => Serializer s (Print s) where
+    serialize = encodeTo . runPrint
 
 printWith :: (Monoid s) => (a -> s) -> Encoding (Print s) a
 printWith f = encodePart $ return . f

@@ -68,27 +68,23 @@ anything :: (Serializer s sm, Deserializer s dm) => Codec s sm dm s
 anything = codec (Encoding serializeTail) (Decoding deserializeTail)
 
 -- | Encoder
-class Encoder c s | c -> s where
+class Encoder s c | c -> s where
     encode :: c a -> a -> Either String s
-    default encode :: (Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ k a, Encoder k s) => c a -> a -> Either String s
-    encode = encode . unwrap
 
 -- | Decoder
-class Decoder c s | c -> s where
+class Decoder s c | c -> s where
     decode :: c a -> s -> Either String a
-    default decode :: (Wrapper t, t ~ c a, WrappedType (IsoRep t) ~ k a, Decoder k s) => c a -> s -> Either String a
-    decode = decode . unwrap
 
-instance (Serializer s sm) => Encoder (Encoding sm) s where
+instance (Serializer s sm) => Encoder s (Encoding sm) where
     encode ~(Encoding s) = serialize . s
 
-instance (Deserializer s dm) => Decoder (Decoding dm) s where
+instance (Deserializer s dm) => Decoder s (Decoding dm) where
     decode ~(Decoding d) = deserialize d
 
-instance (Serializer s sm) => Encoder (Codec s sm dm) s where
+instance (Serializer s sm) => Encoder s (Codec s sm dm) where
     encode ~(Codec e _) = encode e
 
-instance (Deserializer s dm) => Decoder (Codec s sm dm) s where
+instance (Deserializer s dm) => Decoder s (Codec s sm dm) where
     decode ~(Codec _ e) = decode e
 
 -- | Make convertible by @encode@ and @decode@

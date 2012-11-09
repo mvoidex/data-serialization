@@ -34,9 +34,6 @@ module Data.Serialization.Wrap (
     Serializer(..), Deserializer(..),
     -- * Types to wrap over
     EncodeTo, DecodeFrom,
-    -- * Wrap classes
-    WrappedType,
-    Wrapper(..),
     -- * Helper functions
     encodePart, decodePart,
     encodeTo, encodeTail,
@@ -60,8 +57,6 @@ class (Monad sm, Applicative sm, Alternative sm) => Serializer s sm where
     serialize :: sm () -> Either String s
     serializeTail :: s -> sm ()
 
-    default serialize :: (Monoid s, Wrapper t, t ~ sm (), WrappedType (IsoRep t) ~ EncodeTo s ()) => t -> Either String s
-    serialize = encodeTo . unwrap
     default serializeTail :: (MonadWriter s sm) => s -> sm ()
     serializeTail = tell
 
@@ -71,8 +66,6 @@ class (Monad dm, Applicative dm, Alternative dm) => Deserializer s dm where
     deserializeEof :: Hint s -> dm ()
     deserializeTail :: dm s
 
-    default deserialize :: (Monoid s, Eq s, Wrapper t, t ~ dm a, WrappedType (IsoRep t) ~ DecodeFrom s a) => t -> s -> Either String a
-    deserialize = decodeFrom . unwrap
     default deserializeEof :: (Monoid s, Eq s, MonadState s dm, MonadFail dm) => Hint s -> dm ()
     deserializeEof _ = do
         st <- get
